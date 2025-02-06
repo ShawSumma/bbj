@@ -1,0 +1,22 @@
+
+start: instrs
+
+instrs: (named | label | def | raw | align | macro)+
+
+named: NAME args
+
+label: NAME ":"
+def: ".def" NAME args
+raw: ".words" args
+align: ".align" arg
+macro: ".macro" NAME args "\n" instrs+ ".end" "\n"
+
+args: (arg ("," arg)*)?
+
+arg: NAME | INT
+
+INT: /0|[1-9][0-9]*/
+
+NAME: /[a-zA-Z_][a-zA-Z_0-9]*/
+
+%ignore /[\r\n\t ]/
