@@ -1,8 +1,9 @@
 
 from lark import Lark, Tree, Token
-from lark.visitors import Visitor, Interpreter
+from lark.visitors import Visitor, Interpreter, Transformer
 from sys import argv
 from typing import Callable, Tuple
+from os.path import dirname, join, abspath
 
 parser = Lark.open('asm.lark', rel_to=__file__, parser='lalr')
 
@@ -16,6 +17,21 @@ class Macro:
         self.params = params
         self.body = body
 
+class Includes(Transformer):
+    def __init__(self, file):
+        self.path = [abspath(file)]
+
+    def include(self, children):
+        path = str(children[0])[1:-1]
+        path = join(dirname(self.path[-1]), path)
+        with open(path, 'r') as f:
+            self.path.append(path)
+            got = self.transform(parser.parse(f.read()))
+            self.path.pop()
+            return got.children[1]
+        
+        return children
+    
 class Macros(Visitor):
     macros: dict[tuple[str, int], Macro]
 
@@ -88,7 +104,10 @@ class Invoke(Argument):
 
 class Assembler(Interpreter):
     macros: Macros
+    
+    stops: list[int]
     built: list[Argument]
+
     scopes: list[dict[str, Argument]]
     stack: list[Argument]
 
@@ -99,11 +118,10 @@ class Assembler(Interpreter):
         for scope in reversed(self.scopes):
             if name in scope:
                 return scope[name]
-        for i in self.scopes:
-            print(*i.keys())
         raise NameError(f'not defined: {name}')
 
     def start(self, tree):
+        self.stops = set()
         self.built = []
         self.scopes = [{
             'WORD': Const(32),
@@ -141,7 +159,6 @@ class Assembler(Interpreter):
         else:
             raise Exception('.loop: bounds takes upto 3 arguments')
         for i in range(start.value, stop.value, step.value):
-            print(i)
             scope = {
                 str(name): Const(i),
             }
@@ -158,7 +175,7 @@ class Assembler(Interpreter):
         self.scopes.append(local_scope)
         for child in tree.children:
             self.visit(child)
-        scope = self.scopes.pop()
+        self.scopes.pop()
 
     def instr(self, tree):
         name, args = tree.children
@@ -177,10 +194,15 @@ class Assembler(Interpreter):
         self.scopes[-1][label_name].location = len(self.built) * 32
 
     def raw(self, tree):
+        self.stops.add(len(self.built))
         for child in tree.children[0].children:
-            self.visit(child)
-            value = self.stack.pop()
-            self.built.append(value)
+            if isinstance(child, Token) and child.type == "STR":
+                for char in str(child)[1:-1]:
+                    self.built.append(Const(ord(char)))
+            else:
+                self.visit(child)
+                value = self.stack.pop()
+                self.built.append(value)
 
     def arg(self, tree):
         self.visit(tree.children[0])
@@ -232,10 +254,19 @@ class Assembler(Interpreter):
                 case 'NAME':
                     found = self.lookup(str(inner))
                 case 'INT':
-                    found = Const(int(inner))
+                    found = Const(int(inner, 10))
+                case 'HEX':
+                    found = Const(int(inner, 16))
+                case 'BIN':
+                    found = Const(int(inner, 2))
         else:
             self.visit(tree.children[0])
         self.stack.append(found)
+
+    def local(self, tree):
+        name, value = tree.children
+        self.visit(value)
+        self.scopes[-1][str(name)] = self.stack.pop()
 
     def macro(self, tree):
         pass
@@ -244,17 +275,31 @@ class Assembler(Interpreter):
         raise Exception(f'unknown tree type: {tree.data}')
 
 def main():
-    with open(argv[1]) as f:
+    path = abspath(argv[1])
+    with open(path) as f:
         ast = parser.parse(f.read())
+    includes = Includes(path)
+    ast = includes.transform(ast)
+
     macros = Macros()
     macros.visit(ast)
 
     assembler = Assembler(macros)
     assembler.visit(ast)
 
+    with open('out/out.bbs', 'w') as f:
+        for index, value in enumerate(assembler.built):
+            if index in assembler.stops:
+                f.write('.raw ')
+            f.write(str(value.value))
+            if (index + 1) in assembler.stops:
+                f.write('\n')
+            else:
+                f.write(' ')
+        f.write('\n')
+
     with open('out/out.bb32', 'wb') as f:
         for index, value in enumerate(assembler.built):
-            print(f'{value.value:08x}', end = '\n' if index % 3 == 2 else ' ')
             f.write(value.value.to_bytes(4)[::-1])
 
 if __name__ == '__main__':

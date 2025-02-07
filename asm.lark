@@ -1,29 +1,38 @@
 
 start: /\n/* instrs
 
-instrs: (instr | label | raw | align | loop | macro)+
+instrs: (instr | label | raw | align | local | include | loop | macro)*
 
 instr: NAME args "\n"+
 
 label: NAME ":" "\n"*
-raw: ".raw" args "\n"+
+raw: ".raw" raw_args "\n"+
 align: ".align" arg "\n"+
-loop: ".loop" NAME "," args "\n"+ instrs ".end" "\n"+
-macro: ".macro" NAME (NAME ("," NAME)*)? "\n"+ instrs ".end" "\n"+
+local: ".local" NAME ","? arg "\n"+
+include: ".include" STR "\n"+
+loop: ".loop" NAME ","? args1 "\n"+ instrs ".end" "\n"+
+macro: ".macro" NAME (NAME (","? NAME)*)? "\n"+ instrs ".end" "\n"+
 
-args: (arg ("," arg)*)?
+raw_args: ((arg | STR) (","? (arg | STR))*)?
+args: (arg (","? arg)*)?
+args1: arg (","? arg)*
 
 arg: math_add
 
 math_add: math_mul (ADD_OP math_mul)*
 math_mul: single (MUL_OP single)*
-single: NAME | INT
+single: NAME | INT | HEX | INT
 
 ADD_OP: "+" | "-"
 MUL_OP: "*" | "/" | "%"
 
+BIN: /0b[01]+/
+HEX: /0x[0-9A-F]+/
 INT: /0|[1-9][0-9]*/
 
 NAME: /[a-zA-Z_][a-zA-Z_0-9]*/
 
-%ignore /[\t ]/
+%import common.ESCAPED_STRING -> STR
+
+%ignore "\t"
+%ignore " "

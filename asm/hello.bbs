@@ -1,0 +1,11 @@
+    jmp main
+
+.local msg_len 14
+msg:
+    .raw "Hello, World!", 10
+
+main:
+    puts msg, msg_len
+    hlt
+
+.include "std.bbs"
