@@ -1,0 +1,5 @@
+*.bb32
+out
+a.out
+.vscode
+.DS_Store

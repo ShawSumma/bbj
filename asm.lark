@@ -1,22 +1,29 @@
 
-start: instrs
+start: /\n/* instrs
 
-instrs: (named | label | def | raw | align | macro)+
+instrs: (instr | label | raw | align | loop | macro)+
 
-named: NAME args
+instr: NAME args "\n"+
 
-label: NAME ":"
-def: ".def" NAME args
-raw: ".words" args
-align: ".align" arg
-macro: ".macro" NAME args "\n" instrs+ ".end" "\n"
+label: NAME ":" "\n"*
+raw: ".raw" args "\n"+
+align: ".align" arg "\n"+
+loop: ".loop" NAME "," args "\n"+ instrs ".end" "\n"+
+macro: ".macro" NAME (NAME ("," NAME)*)? "\n"+ instrs ".end" "\n"+
 
 args: (arg ("," arg)*)?
 
-arg: NAME | INT
+arg: math_add
+
+math_add: math_mul (ADD_OP math_mul)*
+math_mul: single (MUL_OP single)*
+single: NAME | INT
+
+ADD_OP: "+" | "-"
+MUL_OP: "*" | "/" | "%"
 
 INT: /0|[1-9][0-9]*/
 
 NAME: /[a-zA-Z_][a-zA-Z_0-9]*/
 
-%ignore /[\r\n\t ]/
+%ignore /[\t ]/
