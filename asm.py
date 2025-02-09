@@ -28,10 +28,25 @@ class Includes(Transformer):
             self.path.append(path)
             got = self.transform(parser.parse(f.read()))
             self.path.pop()
-            return got.children[1]
+        for i in got.children:
+            if isinstance(i, Tree):
+                return i
+        raise Exception('internal error in include')
+
+    def instrs(self, children):
+        instrs = []
+
+        def add_all(ch):
+            for c in ch:
+                if isinstance(c, Tree) and c.data == 'instrs':
+                    add_all(c.children)
+                else:
+                    instrs.append(c)
+
+        add_all(children)
+
+        return Tree('instrs', instrs)
         
-        return children
-    
 class Macros(Visitor):
     macros: dict[tuple[str, int], Macro]
 
@@ -127,7 +142,9 @@ class Assembler(Interpreter):
             'WORD': Const(32),
         }]
         self.stack = []
-        self.visit(tree.children[0])
+        for child in tree.children:
+            if isinstance(child, Tree):
+                self.visit(child)
 
     def loop(self, tree):
         name, args, body = tree.children
@@ -192,6 +209,7 @@ class Assembler(Interpreter):
     def label(self, tree):
         label_name = str(tree.children[0])
         self.scopes[-1][label_name].location = len(self.built) * 32
+        # print(label_name, hex(len(self.built) * 32))
 
     def raw(self, tree):
         self.stops.add(len(self.built))
@@ -270,6 +288,12 @@ class Assembler(Interpreter):
 
     def macro(self, tree):
         pass
+
+    def align(self, tree):
+        self.visit(tree.children[0])
+        n = self.stack.pop().value
+        while len(self.built) % n != 0:
+            self.built.append(Const(0))
         
     def __default__(self, tree):
         raise Exception(f'unknown tree type: {tree.data}')

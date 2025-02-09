@@ -1,0 +1,132 @@
+    jmp main
+
+.macro getchar p
+    set p, 0
+    mov p, p
+.end
+
+.macro set a, c
+    jmp next
+data:
+    .raw c
+next:
+    copy 32, a, data
+.end
+
+.macro newline
+    jmp over
+nl:
+    .raw 10
+over:
+    putchar nl
+.end
+
+.macro space
+    jmp over
+sp:
+    .raw 32
+over:
+    putchar sp
+.end
+
+.macro putchar n
+    mov n, n
+.end
+
+.macro puts start, len
+    .loop n, len
+        putchar start + WORD*n
+    .end
+.end
+
+.macro putbits n, addr
+jmp over_buf
+buf:
+    .raw 48
+over_buf:
+    .loop m, n
+        mov buf, addr+n-m-1
+        putchar buf
+    .end
+.end
+
+.macro copy num_bits, dest, src
+    .loop n, 0, num_bits
+        mov dest+n, src+n
+    .end
+.end
+
+.macro copy dest, src
+    copy 32, dest, src
+.end
+
+.macro mov a, b
+    .raw a, b, next
+next:
+.end
+
+.macro jmp addr
+    .raw 0, 0, addr
+.end
+
+.macro out addr
+    .raw addr, addr, next
+next:
+.end
+
+.macro hlt
+self:
+    jmp self
+.end 
+
+.macro times n, word
+    .loop m, 0, n
+        .raw word
+    .end
+.end
+
+.macro zeros n
+    times n, 0
+.end
+
+.macro if_even bit, addr
+    mov head+32*2+7, bit
+head:
+    jmp then
+.align 8
+then:
+    jmp addr
+    .raw 0
+.end
+
+.macro if_odd bit, addr
+    if_even bit, next
+    jmp addr
+next:
+.end
+
+.macro flip addr
+    if_even addr, is_zero
+is_zero:
+    mov addr, bit_select+0
+    jmp out
+bit_select:
+    .raw 2
+is_zero:
+    mov addr, bit_select+1
+out:
+.end
+
+.macro if_zero word, is_zero
+    .loop n, 0, 32
+        if_odd word+n, is_nonzero
+    .end
+    jmp is_zero
+is_nonzero:
+.end
+
+.macro if_nonzero word, is_nonzero
+    if_zero word, is_zero
+    jmp is_nonzero
+is_zero:
+.end

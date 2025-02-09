@@ -1,0 +1,77 @@
+
+.include "boot.bbs"
+
+.macro logic bits, op, out, lhs, rhs
+    jmp over
+table:
+    .raw op
+over:
+    .loop n, bits
+        mov mov_lhs+32, lhs+n
+        mov mov_lhs+32+1, rhs+n
+    mov_lhs:
+        mov out+n, table
+    .end
+.end
+
+.macro word_logic op, out, lhs, rhs
+    logic 32, op, out, lhs, rhs
+.end
+
+.macro bit_logic op, out, lhs, rhs
+    logic 1, op, out, lhs, rhs
+.end
+
+.macro xor out, lhs, rhs
+    word_logic 6, out, lhs, rhs
+.end
+
+.macro and out, lhs, rhs
+    word_logic 8, out, lhs, rhs
+.end
+
+.macro or out, lhs, rhs
+    word_logic 14, out, lhs, rhs
+.end
+
+.macro not out, lhs
+    word_logic 1, out, lhs, lhs
+.end
+
+.macro bxor out, lhs, rhs
+    bit_logic 6, out, lhs, rhs
+.end
+
+.macro band out, lhs, rhs
+    bit_logic 8, out, lhs, rhs
+.end
+
+.macro bor out, lhs, rhs
+    bit_logic 14, out, lhs, rhs
+.end
+
+.macro bnot out, lhs
+    bit_logic 1, out, lhs, lhs
+.end
+
+.macro shl out, input
+    jmp next
+zero:
+    .raw 0
+next:
+    .loop i, 31
+        mov out+31-i, input+30-i
+    .end
+    mov out, zero
+.end
+
+.macro shr out, input
+    jmp next
+zero:
+    .raw 0
+next:
+    mov out, zero
+    .loop i, 31
+        mov out+i, input+i+1
+    .end
+.end

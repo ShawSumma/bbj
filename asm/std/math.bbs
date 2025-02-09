@@ -1,0 +1,20 @@
+
+.include "bitwise.bbs"
+
+.macro add out, lhs, rhs
+    jmp enter
+carry:
+    .raw 0
+shifted:
+    .raw 0
+enter:
+    and carry, lhs, rhs
+    xor out, lhs, rhs
+loop:
+    if_zero carry, done
+    shl shifted, carry
+    and carry, out, shifted
+    xor out, out, shifted
+    jmp loop
+done:
+.end

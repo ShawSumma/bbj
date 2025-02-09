@@ -21,16 +21,16 @@ arg: math_add
 
 math_add: math_mul (ADD_OP math_mul)*
 math_mul: single (MUL_OP single)*
-single: NAME | INT | HEX | INT
+single: NAME | BIN | HEX | INT
 
 ADD_OP: "+" | "-"
 MUL_OP: "*" | "/" | "%"
 
-BIN: /0b[01]+/
-HEX: /0x[0-9A-F]+/
-INT: /0|[1-9][0-9]*/
+BIN: /\b0b[01]+\b/
+HEX: /\b0x[0-9A-F]+\b/
+INT: /\b0|[1-9][0-9]*\b/
 
-NAME: /[a-zA-Z_][a-zA-Z_0-9]*/
+NAME: /\b[a-zA-Z_][a-zA-Z_0-9]*\b/
 
 %import common.ESCAPED_STRING -> STR
 

@@ -1,4 +1,5 @@
-    jmp main
+
+.include "std/bitwise.bbs"
 
 .local msg_len 14
 msg:
@@ -8,4 +9,3 @@ main:
     puts msg, msg_len
     hlt
 
-.include "std.bbs"
