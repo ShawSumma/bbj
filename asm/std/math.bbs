@@ -18,3 +18,49 @@ loop:
     jmp loop
 done:
 .end
+
+.macro sub out, lhs, rhs
+    jmp next
+one:
+    .raw 1
+next:
+    not out, rhs
+    inc out, out
+    add out, lhs, out
+.end
+
+.macro inc low, high, out, arg
+    jmp start
+data:
+    .raw 2
+start:
+    .loop n, low, high
+        if_even arg+n, is_even
+    is_odd:
+        mov out+n, data+0
+        jmp loop
+    is_even:
+        mov out+n, data+1
+        jmp res
+    loop:
+    .end
+    jmp res
+done:
+    copy 16, out, data+16
+    copy 16, out+16, data+16
+res:
+.end
+
+.macro inc out, arg
+    inc 0, 32, out, arg
+.end
+
+.macro dec low, high, out, arg
+    not out, arg
+    inc low, high, out, out
+    not out, arg
+.end
+
+.macro dec out, arg
+    dec 0, 32, out, arg
+.end

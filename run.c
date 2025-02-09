@@ -82,11 +82,7 @@ int main(int argc, char **argv) {
                 }
             }
         } else {
-            if ((mem[b / 32] & (1 << b % 32)) != 0) {
-                mem[a / 32] |= (1 << a % 32);
-            } else {
-                mem[a / 32] &= ~(1 << a % 32);
-            }
+            mem[a / 32] = (mem[a / 32] & ~(1u << (a % 32))) | (((mem[b / 32] >> (b % 32)) & 1) << (a % 32));
         }
     }
 #if PROFILE & 1
@@ -94,6 +90,6 @@ int main(int argc, char **argv) {
 #endif
 #if PROFILE & 2
     clock_t t2 = clock();
-    printf("seconds: %f\n", (double) (t2 - t1) / (double) CLOCKS_PER_SEC);
+    printf("millis: %f\n", (double) (t2 - t1) / (double) CLOCKS_PER_SEC * 1000);
 #endif
 }

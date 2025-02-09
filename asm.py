@@ -321,7 +321,7 @@ def main():
             else:
                 f.write(' ')
         f.write('\n')
-
+    
     with open('out/out.bb32', 'wb') as f:
         for index, value in enumerate(assembler.built):
             f.write(value.value.to_bytes(4)[::-1])

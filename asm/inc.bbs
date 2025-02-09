@@ -1,0 +1,16 @@
+
+.include "std/math.bbs"
+
+r0:
+    .raw 1000
+r1:
+    .raw 0
+
+main:
+    jmp head
+head:
+    if_zero r0, end
+    dec r0, r0
+    jmp head
+end:
+    hlt
