@@ -323,8 +323,8 @@ def main():
         f.write('\n')
     
     with open('out/out.bb32', 'wb') as f:
-        for index, value in enumerate(assembler.built):
-            f.write(value.value.to_bytes(4)[::-1])
+        for value in assembler.built:
+            f.write(value.value.to_bytes(4, byteorder='little'))
 
 if __name__ == '__main__':
     main()

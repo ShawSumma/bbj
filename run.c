@@ -25,10 +25,12 @@ int main(int argc, char **argv) {
     }
     size_t write_head = 0;
     while (true) {
-        if (fread(((uint8_t *)mem) + write_head, 1, 1, f) != 1) {
+        uint8_t buf[4];
+        size_t nread = fread(buf, 1, 4, f);
+        if (nread != 4) {
             break;
         }
-        write_head += 1;
+        mem[write_head++] = ((uint32_t) buf[0]) | ((uint32_t) buf[1] << 8) | ((uint32_t) buf[2] << 16) | ((uint32_t) buf[3] << 24);
     }
 #if PROFILE & 2
     clock_t t1 = clock();
