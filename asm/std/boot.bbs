@@ -5,12 +5,12 @@
     mov p, p
 .end
 
-.macro set a, c
+.macro set dest, int
     jmp next
 data:
-    .raw c
+    .raw int
 next:
-    copy 32, a, data
+    copy 32, dest, data
 .end
 
 .macro newline

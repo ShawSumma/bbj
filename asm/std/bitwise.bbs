@@ -75,3 +75,17 @@ next:
         mov out+i, input+i+1
     .end
 .end
+
+.macro if_eq lhs, rhs, is_eq
+    jmp next
+tmp:
+    .raw 0
+next:
+    if_zero lhs, lhs_zero
+    xor tmp, lhs, rhs
+    if_zero tmp, is_eq
+    jmp end
+lhs_zero:
+    if_zero rhs, is_eq
+end:
+.end

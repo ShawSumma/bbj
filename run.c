@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#define PROFILE 3
+#define PROFILE 0
 #define USE_SAFE 0
 #define MEMORY_WORDS (1 << 22)
 
@@ -78,7 +78,11 @@ int main(int argc, char **argv) {
                 if (*pvalue != 0) {
                     putchar(*pvalue);
                 } else {
-                    *pvalue = getchar();
+                    int c = getchar();
+                    if (c == EOF) {
+                        c = 0;
+                    }
+                    *pvalue = c;
                 }
             }
         } else {

@@ -21,12 +21,12 @@ done:
 
 .macro sub out, lhs, rhs
     jmp next
-one:
+tmp:
     .raw 1
 next:
-    not out, rhs
-    inc out, out
-    add out, lhs, out
+    not tmp, rhs
+    inc tmp, tmp
+    add out, lhs, tmp
 .end
 
 .macro inc low, high, out, arg
@@ -63,4 +63,56 @@ res:
 
 .macro dec out, arg
     dec 0, 32, out, arg
+.end
+
+.macro load n, out, mem
+    jmp over
+iter:
+    .raw 0
+set_iter:
+    .raw n-1
+set_out:
+    .raw out
+over:
+    copy 32, iter, set_iter
+    copy 32, loc_mov, set_out
+    copy 32, loc_mov+32, mem
+loc_mov:
+    mov 0, 0
+    if_zero iter, end
+    inc loc_mov, loc_mov
+    inc loc_mov+32, loc_mov+32
+    dec iter, iter
+    jmp loc_mov
+end:
+.end
+
+.macro store n, mem, in
+    jmp over
+iter:
+    .raw 0
+set_iter:
+    .raw n-1
+set_in:
+    .raw in
+over:
+    copy 32, iter, set_iter
+    copy 32, loc_mov, mem
+    copy 32, loc_mov+32, set_in
+loc_mov:
+    mov 0, in
+    if_zero iter, end
+    inc loc_mov, loc_mov
+    inc loc_mov+32, loc_mov+32
+    dec iter, iter
+    jmp loc_mov
+end:
+.end
+
+.macro load a, b
+    load 32, a, b
+.end
+
+.macro store a, b
+    store 32, a, b
 .end
