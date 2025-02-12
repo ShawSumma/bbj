@@ -6,7 +6,7 @@
 #include <time.h>
 
 #define PROFILE 0
-#define USE_SAFE 0
+#define USE_SAFE 1
 #define MEMORY_WORDS (1 << 24)
 
 int main(int argc, char **argv) {
@@ -26,8 +26,8 @@ int main(int argc, char **argv) {
     size_t write_head = 0;
     while (true) {
         uint8_t buf[4];
-        size_t nread = fread(buf, 1, 4, f);
-        if (nread != 4) {
+        size_t nread = fread(buf, 4, 1, f);
+        if (nread != 1) {
             break;
         }
         mem[write_head++] = ((uint32_t) buf[0]) | ((uint32_t) buf[1] << 8) | ((uint32_t) buf[2] << 16) | ((uint32_t) buf[3] << 24);

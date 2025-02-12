@@ -1,6 +1,8 @@
 
 .include "std/math.bbs"
 
+retval:
+    .raw 0
 r0:
     .raw 0
 r1:
@@ -33,9 +35,14 @@ const_newline:
 const_space:
 const_wordsize:
     .raw 32
+const_wordsize_x2:
+    .raw 32*2
+const_wordsize_x3:
+    .raw 32*3
+const_wordsize_x4:
+    .raw 32*4
 
 stack:
-    .raw 48
     zeros 16
 stack_ptr:
     .raw stack
@@ -85,62 +92,63 @@ read_line_loop:
 read_line_end:
     store line_ptr, const_zero
     copy line_ptr, line_base
+run_line:
+    call lookup
+    call_dyn retval
     jmp run_line
 
-    .local line_ptr_last r0
+    .local words_ptr r0
     .local line_char r1
-    .local words_ptr r2
+    .local line_ptr_last r2
     .local word_char r3
     .local words_next r4
-read_line_after_skip:
+lookup_after_skip:
     add line_ptr, line_ptr, const_wordsize
-run_line:
+lookup:
     load line_char, line_ptr
+    if_eq line_char, const_space, lookup_after_skip
     if_eq line_char, const_char_quote, push_char
     if_eq line_char, const_char_hash, push_num
     if_zero line_char, read_line
-    if_eq line_char, const_space, read_line_after_skip
     set words_ptr, words
     copy line_ptr_last, line_ptr
     load line_char, line_ptr
-    if_zero line_char, run_line_end_of_line
-run_line_check_next_word:
-    if_zero words_ptr, run_line_word_not_found
+    if_zero line_char, lookup_end_of_line
+lookup_check_next_word:
+    if_zero words_ptr, lookup_word_not_found
     load words_next, words_ptr
     add words_ptr, words_ptr, const_wordsize
     copy r6, words_ptr
-run_line_check_char:
+lookup_check_char:
     load line_char, line_ptr
     load word_char, words_ptr
     add line_ptr, line_ptr, const_wordsize
     add words_ptr, words_ptr, const_wordsize
-    if_eq line_char, const_space, run_line_want_stop
-    if_eq line_char, const_zero, run_line_want_stop
-    if_eq line_char, word_char, run_line_char_eq
-run_line_char_not_eq:
+    if_eq line_char, const_space, lookup_want_stop
+    if_eq line_char, const_zero, lookup_want_stop
+    if_eq line_char, word_char, lookup_char_eq
+lookup_char_not_eq:
     copy line_ptr, line_ptr_last
     copy words_ptr, words_next
-    jmp run_line_check_next_word
-run_line_want_stop:
-    if_zero word_char, run_line_found
-    jmp run_line_char_not_eq
-run_line_char_eq:
-    jmp run_line_check_char
-run_line_found:
-    sub line_ptr, line_ptr, const_wordsize
-    copy run_line_found_addr+32*2, words_ptr
-run_line_found_addr:
-    jmp run_line_err_invalid
-run_line_word_not_found:
+    jmp lookup_check_next_word
+lookup_want_stop:
+    if_zero word_char, lookup_found
+    jmp lookup_char_not_eq
+lookup_char_eq:
+    jmp lookup_check_char
+lookup_found:
+    copy retval, words_ptr
+    ret
+lookup_word_not_found:
     set r0, line_ptr_last
     set r1, line_ptr
-run_line_end_of_line:
-    error_number 1
-    hlt
-run_line_print_range:
+lookup_end_of_line:
+    set retval, 0
+    ret
+lookup_print_range:
     error_number 2
     hlt
-run_line_err_invalid:
+lookup_err_invalid:
     error_number 3
     hlt
 
@@ -150,11 +158,11 @@ push_char:
     add line_ptr, line_ptr, const_wordsize
     add stack_ptr, stack_ptr, const_wordsize
     store stack_ptr, r0
-    jmp run_line
+    jmp lookup
 
-    .local push_value, r0
-    .local line_char, r1
-    .local tmp, r2
+    .local push_value r0
+    .local line_char r1
+    .local tmp r2
 push_num:
     set push_value, 0
     add line_ptr, line_ptr, const_wordsize
@@ -173,31 +181,60 @@ push_num_loop:
 push_num_done:
     add stack_ptr, stack_ptr, const_wordsize
     store stack_ptr, r0
-    jmp run_line
+    jmp lookup
+
+words_tail:
+    .raw after_words_builtins
+
+word_semicolon_ptr:
+    .raw word_semicolon
+
+words_helper_ret:
+    set r0, 16
+    putbits 8, r0
+    newline 
+    ret
+
+words_helper_push:
+    add stack_ptr, stack_ptr, const_wordsize
+    store stack_ptr, r1
+    set r1, 17
+    putbits 8, r1
+    space
+    putbits 32, r0
+    newline
+    jmp_dyn r0
 
 words:
 word_0:
     .raw word_1
-    .raw "nop", 0
-    jmp run_line
+    .raw ";", 0
+word_semicolon:
+    sub rstack_ptr, rstack_ptr, const_wordsize
+    ret
+
 word_1:
     .raw word_2
     .raw ".", 0
+word_1_code:
     load r0, stack_ptr
     putchar r0
     sub stack_ptr, stack_ptr, const_wordsize
-    jmp run_line
+    ret
+
 word_2:
     .raw word_3
     .raw "exit", 0
     hlt
+
 word_3:
     .raw word_4
     .raw "dup", 0
     load r0, stack_ptr
     add stack_ptr, stack_ptr, const_wordsize
     store stack_ptr, r0
-    jmp run_line
+    ret
+
 word_4:
     .raw word_5
     .raw "+", 0
@@ -206,13 +243,149 @@ word_4:
     load r1, stack_ptr
     add r0, r0, r1
     store stack_ptr, r0
-    jmp run_line
+    ret
+
 word_5:
     .raw word_6
-    .raw "inc", 0
+    .raw ":", 0
+    .local line_char r0
+    copy word_base, words_tail
+    add words_tail, words_tail, const_wordsize
+    jmp word_def_char_head
+word_def_char_skip:
+    add line_ptr, line_ptr, const_wordsize
+word_def_char_head:
+    load line_char, line_ptr
+    if_eq line_char, const_space, word_def_char_skip
+word_def_char:
+    load line_char, line_ptr
+    add line_ptr, line_ptr, const_wordsize
+    if_eq line_char, const_space, word_def_char_done
+    if_eq line_char, const_zero, word_def_char_done
+    store words_tail, line_char
+    add words_tail, words_tail, const_wordsize
+    jmp word_def_char
+word_def_char_done:
+    store words_tail, const_zero
+    add words_tail, words_tail, const_wordsize
+word_def_read_body:
+    copy word_def_stack_ptr, stack_ptr
+    call lookup
+    xor word_def_stack_ptr, word_def_stack_ptr, stack_ptr
+    if_zero word_def_stack_ptr, word_def_found_word
+word_def_found_push:
     load r0, stack_ptr
-    inc r0, r0
-    store stack_ptr, r0
-    jmp run_line
-word_6:
+    sub stack_ptr, stack_ptr, const_wordsize
+    words_add_set r0, 0
+    copy r2, r0
+    words_add_set r1, r0
+    words_add_jmp words_helper_push
+    store r2, words_tail
+    jmp word_def_read_body
+word_def_found_word:
+    if_zero retval, word_def_error_eol
+    if_eq retval, word_semicolon_ptr, word_def_write_ret
+    # # call add_words
+    jmp word_def_read_body
+word_def_write_ret:
+    words_add_ret
+    store word_base, words_tail
+    store words_tail, const_zero
+    ret
+word_def_error_eol:
+    error_number 1
+    hlt
+
+word_base:
     .raw 0
+word_def_stack_ptr:
+    .raw 0
+word_def_name_ptr:
+    .raw 0
+
+word_6:
+after_words_builtins:
+    zeros 10000
+
+.macro call func
+    store rstack_ptr, after_ref
+    add rstack_ptr, rstack_ptr, const_wordsize
+    jmp func
+after_ref:
+    .raw after
+after:
+.end
+
+.macro call_dyn func_dyn
+    store rstack_ptr, after_ref
+    add rstack_ptr, rstack_ptr, const_wordsize
+    jmp_dyn func_dyn
+after_ref:
+    .raw after
+after:
+.end
+
+.macro ret
+    sub rstack_ptr, rstack_ptr, const_wordsize
+    load r1, rstack_ptr
+    jmp_dyn r1
+.end
+
+.macro words_add_raw_const word
+    words_add_raw_ref data
+    jmp over
+data:
+    .raw word
+over:
+.end
+
+.macro words_add_raw_ref word
+    store words_tail, word
+    add words_tail, words_tail, const_wordsize
+.end
+
+.macro words_add_ret
+    words_add_raw_const 0
+    words_add_raw_const 0
+    words_add_raw_const words_helper_ret
+.end
+
+.macro words_add_set dest, num
+    jmp over
+tmp1:
+    .raw 0
+tmp2:
+    .raw 0
+over:
+    words_add_raw_const 0
+    words_add_raw_const 0
+    add tmp1, words_tail, const_wordsize_x2
+    words_add_raw_const tmp1
+    copy tmp2, words_tail
+    words_add_raw_const num
+    sub r0, words_tail, const_wordsize
+    words_add_copy dest, tmp2
+.end
+
+.macro words_add_copy dest, src
+    .loop n, 32
+        words_add_mov dest+n, src+n
+    .end
+.end
+
+.macro words_add_mov dest, src
+    jmp over
+tmp1:
+    .raw 0
+over:
+    words_add_raw_const src
+    words_add_raw_const dest
+    add tmp1, words_tail, const_wordsize
+    words_add_raw_const tmp1
+.end
+
+.macro words_add_jmp const
+    words_add_raw_const 0
+    words_add_raw_const 0
+    words_add_raw_const const
+.end
