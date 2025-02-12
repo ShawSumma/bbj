@@ -1,14 +1,13 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <time.h>
 
 #define PROFILE 0
 #define USE_SAFE 0
-#define MEMORY_WORDS (1 << 22)
-
-uint32_t mem[MEMORY_WORDS + 4] = {0};
+#define MEMORY_WORDS (1 << 24)
 
 int main(int argc, char **argv) {
     if (argv[0] == NULL) {
@@ -23,6 +22,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "no such file: %s\n", argv[1]);
         return 1;
     }
+    uint32_t *mem = calloc(1, sizeof(uint32_t) * MEMORY_WORDS);
     size_t write_head = 0;
     while (true) {
         uint8_t buf[4];
@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 #if PROFILE & 2
     clock_t t1 = clock();
 #endif
-    uint32_t pc = 0;
+    uint32_t pc = *mem++;
 #if PROFILE & 1
     size_t num = 0;
 #endif
@@ -78,7 +78,8 @@ int main(int argc, char **argv) {
                 uint8_t *pvalue = &((uint8_t *) mem)[a / 8];
                 // printf("[addr = %zx; value = %zu]", (size_t) a, (size_t) *pvalue);
                 if (*pvalue != 0) {
-                    putchar(*pvalue);
+                    fprintf(stdout, "%c", *pvalue);
+                    fflush(stdout);
                 } else {
                     int c = getchar();
                     if (c == EOF) {

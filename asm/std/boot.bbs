@@ -33,12 +33,6 @@ over:
     mov n, n
 .end
 
-.macro puts start, len
-    .loop n, len
-        putchar start + WORD*n
-    .end
-.end
-
 .macro putbits n, addr
 jmp over_buf
 buf:

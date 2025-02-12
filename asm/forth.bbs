@@ -1,0 +1,165 @@
+
+.include "std/math.bbs"
+
+r0:
+    .raw 0
+r1:
+    .raw 0
+r2:
+    .raw 0
+r3:
+    .raw 0
+r4:
+    .raw 0
+r5:
+    .raw 0
+r6:
+    .raw 0
+r7:
+    .raw 0
+
+const_zero:
+    .raw 0
+const_cr:
+    .raw 13
+const_newline:
+    .raw 10
+const_space:
+const_wordsize:
+    .raw 32
+const_alpha:
+    .raw "abcdef"
+
+stack:
+    .raw "w"
+    zeros 16
+stack_ptr:
+    .raw stack
+
+rstack:
+    zeros 16
+rstack_ptr:
+    zeros rstack_ptr
+
+line:
+    zeros 80
+line_ptr:
+    .raw 0
+line_base:
+    .raw line
+
+not_found:
+    .raw "not found: ", 0
+not_found_ptr:
+    .raw not_found
+
+.macro error_number n
+    jmp over
+num:
+    .raw n
+msg:
+    .raw "error #", 0
+msg_ref:
+    .raw msg
+over:
+    puts msg_ref
+    putbits 8, num
+    newline
+.end
+
+main:
+    jmp read_line
+read_line:
+    copy line_ptr, line_base
+read_line_loop:
+    getchar r0
+    if_eq r0, const_cr, read_line_end
+    if_eq r0, const_newline, read_line_end
+    store line_ptr, r0
+    add line_ptr, line_ptr, const_wordsize
+    jmp read_line_loop
+read_line_end:
+    store line_ptr, const_zero
+    copy line_ptr, line_base
+    jmp run_line
+
+    .local line_ptr_last r0
+    .local line_char r1
+    .local words_ptr r2
+    .local word_char r3
+    .local words_next r4
+read_line_after_skip:
+    add line_ptr, line_ptr, const_wordsize
+run_line:
+    load line_char, line_ptr
+    if_zero line_char, read_line
+    if_eq line_char, const_space, read_line_after_skip
+    set words_ptr, words
+    copy line_ptr_last, line_ptr
+    load line_char, line_ptr
+    if_zero line_char, run_line_end_of_line
+run_line_check_next_word:
+    if_zero words_ptr, run_line_word_not_found
+    load words_next, words_ptr
+    add words_ptr, words_ptr, const_wordsize
+    copy r6, words_ptr
+run_line_check_char:
+    load line_char, line_ptr
+    load word_char, words_ptr
+    add line_ptr, line_ptr, const_wordsize
+    add words_ptr, words_ptr, const_wordsize
+    if_eq line_char, const_space, run_line_want_stop
+    if_eq line_char, const_zero, run_line_want_stop
+    if_eq line_char, word_char, run_line_char_eq
+run_line_char_not_eq:
+    copy line_ptr, line_ptr_last
+    copy words_ptr, words_next
+    jmp run_line_check_next_word
+run_line_want_stop:
+    if_zero word_char, run_line_found
+    jmp run_line_char_not_eq
+run_line_char_eq:
+    jmp run_line_check_char
+run_line_found:
+    sub line_ptr, line_ptr, const_wordsize
+    copy run_line_found_addr+32*2, words_ptr
+run_line_found_addr:
+    jmp run_line_err_invalid
+run_line_word_not_found:
+    set r0, line_ptr_last
+    set r1, line_ptr
+run_line_end_of_line:
+    error_number 1
+    hlt
+run_line_print_range:
+    error_number 2
+    hlt
+run_line_err_invalid:
+    error_number 3
+    hlt
+
+words:
+word_0:
+    .raw word_1
+    .raw "nop", 0
+    jmp run_line
+word_1:
+    .raw word_2
+    .raw ".", 0
+    load r0, stack_ptr
+    putchar r0
+    newline
+    jmp run_line
+word_2:
+    .raw word_3
+    .raw "exit", 0
+    hlt
+word_3:
+    .raw word_4
+    .raw "inc", 0
+    load r0, stack_ptr
+    inc r0, r0
+    store stack_ptr, r0
+    jmp run_line 
+word_4:
+    .raw 0

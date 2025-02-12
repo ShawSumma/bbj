@@ -1,0 +1,42 @@
+
+run_line_skip_spaces:
+    load r0, line_ptr
+    if_eq r0, const_space, run_line_skip_space
+    jmp run_line_no_leading_spaces
+run_line_skip_space:
+    add line_ptr, line_ptr, const_word
+    jmp run_line_skip_spaces
+run_line_no_leading_spaces:
+    if_zero r0, run_line_end_of_line
+    set r1, words
+    copy r4, line_ptr
+run_line_loop:
+    copy r0, r1
+    putbits r1, r
+    add r1, r1, const_word
+    load r2, r1
+    if_zero r2, run_line_word_not_found
+run_line_check:
+    load r2, r1
+    load r3, r4
+    add r1, r1, const_word
+    add r4, r4, const_word
+    putchar r2
+    space
+    putchar r3
+    newline
+    if_eq r3, const_newline, run_line_want_end
+    if_eq r3, const_space, run_line_want_end
+    if_eq r2, r3, run_line_check
+    jmp run_line_not_found
+run_line_want_end:
+    if_zero r2, run_line_found
+    if_eq r2, const_space, run_line_found
+    jmp run_line_not_found
+run_line_found:
+    add r1, r1, const_word
+    copy line_ptr, r4
+    jmp word_1
+run_line_not_found:
+    load r1, r0
+    jmp run_line_loop

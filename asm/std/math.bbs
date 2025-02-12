@@ -116,3 +116,21 @@ end:
 .macro store a, b
     store 32, a, b
 .end
+
+.macro puts str
+        copy chr_ptr, str
+        jmp loop
+    chr:
+        .raw 0
+    chr_ptr:
+        .raw 0
+    const_wordsize:
+        .raw 32
+    loop:
+        load chr, chr_ptr
+        if_zero chr, done
+        putchar chr
+        add chr_ptr, chr_ptr, const_wordsize
+        jmp loop
+    done:
+.end

@@ -1,5 +1,6 @@
 *.bb32
-out
+out/*
+!out/.gitkeep
 a.out
 .vscode
 .DS_Store

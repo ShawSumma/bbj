@@ -323,6 +323,7 @@ def main():
         f.write('\n')
     
     with open('out/out.bb32', 'wb') as f:
+        f.write((0).to_bytes(4, byteorder='little'))
         for value in assembler.built:
             f.write(value.value.to_bytes(4, byteorder='little'))
 
