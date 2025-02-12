@@ -124,3 +124,9 @@ is_nonzero:
     jmp is_nonzero
 is_zero:
 .end
+
+.macro jmp_dyn mem
+    copy loc+32*2, mem
+loc:
+    jmp 0
+.end

@@ -54,15 +54,22 @@ over:
     bit_logic 1, out, lhs, lhs
 .end
 
-.macro shl out, input
+.macro shl n, out, input
     jmp next
 zero:
     .raw 0
 next:
-    .loop i, 31
-        mov out+31-i, input+30-i
+    .local max 32-n
+    .loop i, max
+        mov out+max-i, input+max-1-i
     .end
-    mov out, zero
+    .loop i, n
+        mov out+i, zero
+    .end
+.end
+
+.macro shl out, input
+    shl 1, out, input
 .end
 
 .macro shr out, input

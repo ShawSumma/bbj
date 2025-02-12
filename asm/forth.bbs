@@ -18,6 +18,12 @@ r6:
 r7:
     .raw 0
 
+const_char_quote:
+    .raw "'"
+const_char_hash:
+    .raw "#"
+const_char_zero:
+    .raw "0"
 const_zero:
     .raw 0
 const_cr:
@@ -27,11 +33,9 @@ const_newline:
 const_space:
 const_wordsize:
     .raw 32
-const_alpha:
-    .raw "abcdef"
 
 stack:
-    .raw "w"
+    .raw 48
     zeros 16
 stack_ptr:
     .raw stack
@@ -92,6 +96,8 @@ read_line_after_skip:
     add line_ptr, line_ptr, const_wordsize
 run_line:
     load line_char, line_ptr
+    if_eq line_char, const_char_quote, push_char
+    if_eq line_char, const_char_hash, push_num
     if_zero line_char, read_line
     if_eq line_char, const_space, read_line_after_skip
     set words_ptr, words
@@ -138,6 +144,37 @@ run_line_err_invalid:
     error_number 3
     hlt
 
+push_char:
+    add line_ptr, line_ptr, const_wordsize
+    load r0, line_ptr
+    add line_ptr, line_ptr, const_wordsize
+    add stack_ptr, stack_ptr, const_wordsize
+    store stack_ptr, r0
+    jmp run_line
+
+    .local push_value, r0
+    .local line_char, r1
+    .local tmp, r2
+push_num:
+    set push_value, 0
+    add line_ptr, line_ptr, const_wordsize
+push_num_loop:
+    load line_char, line_ptr
+    add line_ptr, line_ptr, const_wordsize
+    if_eq line_char, const_space, push_num_done
+    if_zero line_char, push_num_done
+    shl tmp, push_value
+    shl push_value, tmp
+    shl push_value, push_value
+    add push_value, push_value, tmp
+    sub line_char, line_char, const_char_zero
+    add push_value, push_value, line_char
+    jmp push_num_loop
+push_num_done:
+    add stack_ptr, stack_ptr, const_wordsize
+    store stack_ptr, r0
+    jmp run_line
+
 words:
 word_0:
     .raw word_1
@@ -148,7 +185,7 @@ word_1:
     .raw ".", 0
     load r0, stack_ptr
     putchar r0
-    newline
+    sub stack_ptr, stack_ptr, const_wordsize
     jmp run_line
 word_2:
     .raw word_3
@@ -156,10 +193,26 @@ word_2:
     hlt
 word_3:
     .raw word_4
+    .raw "dup", 0
+    load r0, stack_ptr
+    add stack_ptr, stack_ptr, const_wordsize
+    store stack_ptr, r0
+    jmp run_line
+word_4:
+    .raw word_5
+    .raw "+", 0
+    load r0, stack_ptr
+    sub stack_ptr, stack_ptr, const_wordsize
+    load r1, stack_ptr
+    add r0, r0, r1
+    store stack_ptr, r0
+    jmp run_line
+word_5:
+    .raw word_6
     .raw "inc", 0
     load r0, stack_ptr
     inc r0, r0
     store stack_ptr, r0
-    jmp run_line 
-word_4:
+    jmp run_line
+word_6:
     .raw 0
