@@ -84,6 +84,9 @@ class Const(Argument):
     @property
     def value(self):
         return self.const
+    
+    def ast(self):
+        return self.const
 
 class Label(Argument):
     name: str
@@ -100,13 +103,30 @@ class Label(Argument):
             raise NameError(f'label not defined: {self.name}')
         return self.location
     
+    def ast(self):
+        return self.name
+
+class Set(Argument):
+    label: Label
+
+    def __init__(self, label):
+        self.label = label
+
+    @property
+    def value(self):
+        return self.label.value
+    
+    def ast(self):
+        return self.label.ast()
+
 class Invoke(Argument):
     name: str
     args: list[Argument]
     func: Callable[[*Tuple[Argument, ...]], Argument]
     cached: Argument | None
 
-    def __init__(self, func, *args):
+    def __init__(self, name, func, *args):
+        self.name = name
         self.func = func
         self.args = args
         self.cached = None
@@ -116,18 +136,29 @@ class Invoke(Argument):
         if self.cached is None:
             self.cached = self.func(*(i.value for i in self.args))
         return self.cached
+    
+    def ast(self):
+        if len(self.args) == 0:
+            return f"({self.name})"
+        args = ' '.join(arg.ast() for arg in self.args)
+        return f"({self.name} {args})"
 
 class Assembler(Interpreter):
     macros: Macros
     
     stops: list[int]
-    built: list[Argument]
+    cur_section: str
+    sections: dict[str, list[Argument]]
 
     scopes: list[dict[str, Argument]]
     stack: list[Argument]
 
     def __init__(self, macros):
         self.macros = macros
+
+    @property
+    def built(self) -> list[Argument]:
+        return self.sections[self.cur_section]
 
     def lookup(self, name):
         for scope in reversed(self.scopes):
@@ -137,7 +168,10 @@ class Assembler(Interpreter):
 
     def start(self, tree):
         self.stops = set()
-        self.built = []
+        self.cur_section = 'init'
+        self.sections = {
+            self.cur_section: []
+        }
         self.scopes = [{
             'WORD': Const(32),
         }]
@@ -145,6 +179,11 @@ class Assembler(Interpreter):
         for child in tree.children:
             if isinstance(child, Tree):
                 self.visit(child)
+
+    def section(self, tree):
+        self.cur_section = str(tree.children[0])
+        if self.cur_section not in self.sections:
+            self.sections[self.cur_section] = []
 
     def loop(self, tree):
         name, args, body = tree.children
@@ -208,7 +247,7 @@ class Assembler(Interpreter):
 
     def label(self, tree):
         label_name = str(tree.children[0])
-        self.scopes[-1][label_name].location = len(self.built) * 32
+        self.built.append(Set(self.scopes[-1][label_name]))
         # print(label_name, hex(len(self.built) * 32))
 
     def raw(self, tree):
@@ -237,25 +276,25 @@ class Assembler(Interpreter):
             lhs = self.stack.pop()
             match op:
                 case "<<":
-                    self.stack.append(Invoke(lambda x, y: x << y, lhs, rhs))
+                    self.stack.append(Invoke(op, lambda x, y: x << y, lhs, rhs))
                 case ">>":
-                    self.stack.append(Invoke(lambda x, y: x >> y, lhs, rhs))
+                    self.stack.append(Invoke(op, lambda x, y: x >> y, lhs, rhs))
                 case "&":
-                    self.stack.append(Invoke(lambda x, y: x & y, lhs, rhs))
+                    self.stack.append(Invoke(op, lambda x, y: x & y, lhs, rhs))
                 case "|":
-                    self.stack.append(Invoke(lambda x, y: x | y, lhs, rhs))
+                    self.stack.append(Invoke(op, lambda x, y: x | y, lhs, rhs))
                 case "^":
-                    self.stack.append(Invoke(lambda x, y: x ^ y, lhs, rhs))
+                    self.stack.append(Invoke(op, lambda x, y: x ^ y, lhs, rhs))
                 case "*":
-                    self.stack.append(Invoke(lambda x, y: x * y, lhs, rhs))
+                    self.stack.append(Invoke(op, lambda x, y: x * y, lhs, rhs))
                 case "/":
-                    self.stack.append(Invoke(lambda x, y: x // y, lhs, rhs))
+                    self.stack.append(Invoke(op, lambda x, y: x // y, lhs, rhs))
                 case "%":
-                    self.stack.append(Invoke(lambda x, y: x % y, lhs, rhs))
+                    self.stack.append(Invoke(op, lambda x, y: x % y, lhs, rhs))
                 case "+":
-                    self.stack.append(Invoke(lambda x, y: x + y, lhs, rhs))
+                    self.stack.append(Invoke(op, lambda x, y: x + y, lhs, rhs))
                 case "-":
-                    self.stack.append(Invoke(lambda x, y: x - y, lhs, rhs))
+                    self.stack.append(Invoke(op, lambda x, y: x - y, lhs, rhs))
                 case _:
                     raise Exception("internal error")
 
@@ -298,6 +337,21 @@ class Assembler(Interpreter):
     def __default__(self, tree):
         raise Exception(f'unknown tree type: {tree.data}')
 
+def link(sections: dict[str, list[Argument]]) -> list[Argument]:
+    out = []
+
+    def add_section(name: str):
+        for arg in sections[name]:
+            if isinstance(arg, Set):
+                arg.label.location = len(out) * 32
+            else:
+                out.append(arg)
+    
+    for key in sections:
+        add_section(key)
+
+    return out
+
 def main():
     path = abspath(argv[1])
     with open(path) as f:
@@ -311,21 +365,10 @@ def main():
     assembler = Assembler(macros)
     assembler.visit(ast)
 
-    with open('out/out.bbs', 'w') as f:
-        for index, value in enumerate(assembler.built):
-            if index in assembler.stops:
-                f.write('.raw ')
-            f.write(str(value.value))
-            if (index + 1) in assembler.stops:
-                f.write('\n')
-            else:
-                f.write(' ')
-        f.write('\n')
-    
     with open('out/out.bb32', 'wb') as f:
         f.write((0).to_bytes(4, byteorder='little'))
-        for value in assembler.built:
-            f.write(value.value.to_bytes(4, byteorder='little'))
+        for value in link(assembler.sections):
+            f.write((value.value & 0xFFFFFFFF).to_bytes(4, byteorder='little'))
 
 if __name__ == '__main__':
     main()

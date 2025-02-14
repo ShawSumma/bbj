@@ -1,7 +1,7 @@
 
 start: /\n/* instrs
 
-instrs: (instr | label | raw | align | local | include | loop | macro)*
+instrs: (instr | label | raw | align | local | include | section | loop | macro)*
 
 instr: NAME args "\n"+
 
@@ -10,6 +10,7 @@ raw: ".raw" raw_args "\n"+
 align: ".align" arg "\n"+
 local: ".local" NAME ","? arg "\n"+
 include: ".include" STR "\n"+
+section: ".section" NAME "\n"+
 loop: ".loop" NAME ","? args1 "\n"+ instrs ".end" "\n"+
 macro: ".macro" NAME (NAME (","? NAME)*)? "\n"+ instrs ".end" "\n"+
 

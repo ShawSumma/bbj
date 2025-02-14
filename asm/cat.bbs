@@ -1,0 +1,10 @@
+
+.include "std.bbs"
+
+r0:
+    .raw 0
+
+main:
+    getchar r0
+    putchar r0
+    jmp main

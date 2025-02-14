@@ -1,0 +1,24 @@
+
+.include "std.bbs"
+
+newline:
+    .raw 10
+
+r0:
+    .raw "x"
+r1:
+    .raw "y"
+
+cond:
+    .raw 1
+
+main:
+    jeven cond, odd
+even:
+    putchar r0
+    putchar newline
+    hlt
+odd:
+    putchar r1
+    putchar newline
+    hlt

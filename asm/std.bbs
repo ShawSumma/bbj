@@ -1,0 +1,76 @@
+    jmp main
+
+.macro jmp addr
+here:
+    .raw 0, 0, addr-here
+.end
+
+.macro hlt
+    .raw 0, 0, 0
+.end
+
+.macro bit dest, src
+here:
+    .raw dest-here, src-here, next-here
+next: 
+.end
+
+.macro set addr, value
+    jmp over
+loc:
+    .raw value
+over:
+    mov addr, loc
+.end
+
+.macro putchar addr
+here:
+    .raw addr-here, addr-here, next-here
+next:
+.end
+
+.macro getchar out
+    mov out, zero
+    jmp over
+zero:
+    .raw 0
+over:
+    putchar out
+.end
+
+
+.macro mov n, dest, src
+    .loop m, n
+        bit dest+m, src+m
+    .end
+.end
+
+.macro mov dest, src
+    mov 32, dest, src
+.end
+
+.macro times n, word
+    .loop m, n
+        .raw word
+    .end
+.end
+
+.macro zeros n
+    times n, 0
+.end
+
+.macro jodd bit, addr
+    bit head + 32*2 + 7, bit
+head:
+    jmp then
+then:
+    jmp addr
+    zeros 1
+over:
+.end
+
+.macro jeven bit, addr
+    jodd bit, over
+    jmp addr
+over:
+.end

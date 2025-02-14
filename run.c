@@ -31,6 +31,7 @@ int main(int argc, char **argv) {
             break;
         }
         mem[write_head++] = ((uint32_t) buf[0]) | ((uint32_t) buf[1] << 8) | ((uint32_t) buf[2] << 16) | ((uint32_t) buf[3] << 24);
+        // printf("0x%zX 0x%zX\n", (size_t) (write_head * 32 - 32), (size_t) mem[write_head-1]);
     }
 #if PROFILE & 2
     clock_t t1 = clock();
@@ -45,11 +46,11 @@ int main(int argc, char **argv) {
 #endif
         uint32_t last_pc = pc;
 
-        uint32_t a = mem[pc / 32 + 0];
-        uint32_t b = mem[pc / 32 + 1];
-        uint32_t c = mem[pc / 32 + 2];
+        uint32_t a = pc + mem[pc / 32 + 0];
+        uint32_t b = pc + mem[pc / 32 + 1];
+        uint32_t c = pc + mem[pc / 32 + 2];
 
-        // printf("0x%zx 0x%zx 0x%zx\n", (size_t) a, (size_t) b, (size_t) c);
+        // printf("0x%zX: 0x%zX 0x%zX 0x%zx\n", (size_t) pc, (size_t) a, (size_t) b, (size_t) c);
 
 #if USE_SAFE
         if (a / 32 >= MEMORY_WORDS) {
@@ -68,13 +69,11 @@ int main(int argc, char **argv) {
         }
 #endif
 
-        pc = c;
-
         if (a == b) {
-            if (pc == last_pc) {
+            if (c == pc) {
                 break;
             }
-            if (a != 0) {
+            if (a != pc) {
                 uint8_t *pvalue = &((uint8_t *) mem)[a / 8];
                 // printf("[addr = %zx; value = %zu]", (size_t) a, (size_t) *pvalue);
                 if (*pvalue != 0) {
@@ -91,6 +90,8 @@ int main(int argc, char **argv) {
         } else {
             mem[a / 32] = (mem[a / 32] & ~(1u << (a % 32))) | (((mem[b / 32] >> (b % 32)) & 1) << (a % 32));
         }
+
+        pc = c;
     }
 #if PROFILE & 1
     printf("instrs: %zu\n", num);
